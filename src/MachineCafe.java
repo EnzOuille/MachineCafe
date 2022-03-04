@@ -145,7 +145,9 @@ public class MachineCafe {
         int lait = Integer.parseInt(ingredients[1]);
         int sucre = Integer.parseInt(ingredients[2]);
         int chocolat = Integer.parseInt(ingredients[3]);
-        if (verifComposition(cafe, lait, sucre, chocolat)){ throw new BadComposition();}
+        if (verifComposition(cafe, lait, sucre, chocolat)) {
+            throw new BadComposition();
+        }
         boolean condition = true;
         for (Boisson boisson : this.boissons) {
             if (boisson.getNom().equalsIgnoreCase(nom)) {
@@ -162,42 +164,34 @@ public class MachineCafe {
         }
     }
 
-    private void modifierBoisson(Scanner scanner) {
+    private void modifierBoisson(Scanner scanner) throws NameException, NameDontExist, BadComposition {
         println("--- Saisissez le nom de la boisson dont la composition doit etre modifiée ---");
         this.listBoissons();
         String nom_modif = scanner.nextLine();
-        if (this.checkBoissonExist(nom_modif)) {
-            println("--- Rentrer dans l'ordre et séparé par un ';' la  nouvelle composition : Cafe Lait Sucre Chocolat ---");
-            try {
-                String[] ingredients_modif = scanner.nextLine().split(";");
-                int cafe_modif = Integer.parseInt(ingredients_modif[0]);
-                int lait_modif = Integer.parseInt(ingredients_modif[1]);
-                int sucre_modif = Integer.parseInt(ingredients_modif[2]);
-                int chocolat_modif = Integer.parseInt(ingredients_modif[3]);
-                if (verifComposition(cafe_modif, sucre_modif, lait_modif, chocolat_modif)){ throw new BadComposition();}
-                boolean condition = false;
-                for (Boisson boisson : this.boissons) {
-                    if (boisson.getNom().equalsIgnoreCase(nom_modif)) {
-                        boisson.setNbCafe(cafe_modif);
-                        boisson.setNbSucre(sucre_modif);
-                        boisson.setNbChocolat(chocolat_modif);
-                        boisson.setNbLait(lait_modif);
-                        condition = true;
-                    }
-                }
-                if (condition) {
-                    println("-- La composition de la boisson a bien été modifiée --");
-                } else {
-                    println("-- La composition n'as pas pu être modifiée --");
-                }
-            } catch (NumberFormatException e) {
-                println("--- Vous avez mal saisi un entier ---");
-            } catch (BadComposition e) {
-                e.printStackTrace();
-            }
-        } else {
-            println("--- Cette boisson n'existe pas ---");
+        if (nom_modif.isEmpty() || nom_modif.isBlank() || nom_modif.length() > 100) {
+            throw new NameException();
         }
+        if (!this.checkBoissonExist(nom_modif)) {
+            throw new NameDontExist();
+        }
+        println("--- Rentrer dans l'ordre et séparé par un ';' la  nouvelle composition : Cafe Lait Sucre Chocolat ---");
+        String[] ingredients_modif = scanner.nextLine().split(";");
+        int cafe_modif = Integer.parseInt(ingredients_modif[0]);
+        int lait_modif = Integer.parseInt(ingredients_modif[1]);
+        int sucre_modif = Integer.parseInt(ingredients_modif[2]);
+        int chocolat_modif = Integer.parseInt(ingredients_modif[3]);
+        if (verifComposition(cafe_modif, sucre_modif, lait_modif, chocolat_modif)) {
+            throw new BadComposition();
+        }
+        for (Boisson boisson : this.boissons) {
+            if (boisson.getNom().equalsIgnoreCase(nom_modif)) {
+                boisson.setNbCafe(cafe_modif);
+                boisson.setNbSucre(sucre_modif);
+                boisson.setNbChocolat(chocolat_modif);
+                boisson.setNbLait(lait_modif);
+            }
+        }
+        println("--- La compisition de la boisson a bien étée modifiée ---");
     }
 
     private void supprimerBoisson(Scanner scanner) throws NameException, NameDontExist {
@@ -240,10 +234,9 @@ public class MachineCafe {
     }
 
     private void listBoissons() {
-        int compteur = 1;
         this.boissons.sort(Comparator.comparing(Boisson::getNom));
         for (Boisson boisson : this.boissons) {
-            println("Boisson " + compteur + ": " + boisson.getNom() + " : " + boisson.getPrix() + " €");
+            println(boisson.getNom() + " : " + boisson.getPrix() + " €");
         }
     }
 
@@ -288,10 +281,10 @@ public class MachineCafe {
         return test <= 0 || test >= 10000;
     }
 
-    private boolean verifComposition(int cafe, int sucre, int lait, int chocolat){
-        if(cafe == 0 && sucre == 0 && lait == 0 && chocolat == 0){
+    private boolean verifComposition(int cafe, int sucre, int lait, int chocolat) {
+        if (cafe == 0 && sucre == 0 && lait == 0 && chocolat == 0) {
             return true;
-        }else return sucre > 0 && cafe == 0 && lait == 0 && chocolat == 0;
+        } else return sucre > 0 && cafe == 0 && lait == 0 && chocolat == 0;
     }
 
     static class IntStockException extends Exception {
@@ -322,16 +315,9 @@ public class MachineCafe {
         }
     }
 
-    static class NoBoisson extends Exception {
-
-        public NoBoisson() {
-            super("--- Aucunes boissons dans la machine ! ---");
-        }
-    }
-
     static class BadComposition extends Exception {
 
-        public BadComposition(){
+        public BadComposition() {
             super("--- Vous ne pouvez pas faire de l'eau sucrée ou une composition vide ---");
         }
     }
