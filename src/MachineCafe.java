@@ -82,7 +82,7 @@ public class MachineCafe {
             }
         } catch (NumberFormatException e) {
             println("--- Votre entier n'est pas correct, il doit être positif et compris entre 0 et 10000 ---");
-        } catch (IntStockException | IntPriceException | NameException | NameDontExist e) {
+        } catch (IntStockException | IntPriceException | NameException | NameDontExist | BadComposition e) {
             println(e.getMessage());
         }
     }
@@ -94,13 +94,12 @@ public class MachineCafe {
         if (nom_boisson.isBlank() || nom_boisson.isEmpty() || nom_boisson.length() > 100) {
             throw new NameException();
         }
-        ;
         if (!this.checkBoissonExist(nom_boisson)) {
             throw new NameDontExist();
         }
         println("--- Insérer votre monnaie (entier) ---");
         int montant = Integer.parseInt(scanner.nextLine());
-        if (!verifIntegerPrice(montant)) {
+        if (verifIntegerPrice(montant)) {
             throw new IntStockException();
         }
         for (Boisson boisson : this.boissons) {
@@ -129,7 +128,7 @@ public class MachineCafe {
         this.stock.replace("lait", this.stock.get("lait") - lait);
     }
 
-    private void ajouterBoisson(Scanner scanner) throws NameException, IntPriceException {
+    private void ajouterBoisson(Scanner scanner) throws NameException, IntPriceException, BadComposition {
         println("--- Rentrer le nom de la boisson à créer ---");
         String nom = scanner.nextLine();
         if (nom.isEmpty() || nom.isBlank() || nom.length() > 100) {
@@ -137,7 +136,7 @@ public class MachineCafe {
         }
         println("--- Rentrer le prix de la boisson (entier) ---");
         int prix = Integer.parseInt(scanner.nextLine());
-        if (!verifIntegerPrice(prix)) {
+        if (verifIntegerPrice(prix)) {
             throw new IntPriceException();
         }
         println("--- Rentrer dans l'ordre et séparé par un ';' la composition : Cafe Lait Sucre Chocolat ---");
@@ -146,6 +145,7 @@ public class MachineCafe {
         int lait = Integer.parseInt(ingredients[1]);
         int sucre = Integer.parseInt(ingredients[2]);
         int chocolat = Integer.parseInt(ingredients[3]);
+        if (verifComposition(cafe, lait, sucre, chocolat)){ throw new BadComposition();}
         boolean condition = true;
         for (Boisson boisson : this.boissons) {
             if (boisson.getNom().equalsIgnoreCase(nom)) {
@@ -174,6 +174,7 @@ public class MachineCafe {
                 int lait_modif = Integer.parseInt(ingredients_modif[1]);
                 int sucre_modif = Integer.parseInt(ingredients_modif[2]);
                 int chocolat_modif = Integer.parseInt(ingredients_modif[3]);
+                if (verifComposition(cafe_modif, sucre_modif, lait_modif, chocolat_modif)){ throw new BadComposition();}
                 boolean condition = false;
                 for (Boisson boisson : this.boissons) {
                     if (boisson.getNom().equalsIgnoreCase(nom_modif)) {
@@ -191,6 +192,8 @@ public class MachineCafe {
                 }
             } catch (NumberFormatException e) {
                 println("--- Vous avez mal saisi un entier ---");
+            } catch (BadComposition e) {
+                e.printStackTrace();
             }
         } else {
             println("--- Cette boisson n'existe pas ---");
@@ -282,41 +285,54 @@ public class MachineCafe {
     }
 
     private boolean verifIntegerPrice(int test) {
-        return test > 0 && test < 10000;
+        return test <= 0 || test >= 10000;
     }
 
-    class IntStockException extends Exception {
+    private boolean verifComposition(int cafe, int sucre, int lait, int chocolat){
+        if(cafe == 0 && sucre == 0 && lait == 0 && chocolat == 0){
+            return true;
+        }else return sucre > 0 && cafe == 0 && lait == 0 && chocolat == 0;
+    }
+
+    static class IntStockException extends Exception {
 
         public IntStockException() {
             super("--- L'entier doit être >=0 et <10000 ! ---");
         }
     }
 
-    class IntPriceException extends Exception {
+    static class IntPriceException extends Exception {
 
         public IntPriceException() {
             super("--- L'entier doit être >0 et <10000 ! ---");
         }
     }
 
-    class NameException extends Exception {
+    static class NameException extends Exception {
 
         public NameException() {
             super("--- Le nom saisi n'est pas correct. Doit être non vide et <100 caractères ! ---");
         }
     }
 
-    class NameDontExist extends Exception {
+    static class NameDontExist extends Exception {
 
         public NameDontExist() {
             super("--- Aucune boisson avec ce nom connue ! ---");
         }
     }
 
-    class NoBoisson extends Exception {
+    static class NoBoisson extends Exception {
 
         public NoBoisson() {
             super("--- Aucunes boissons dans la machine ! ---");
+        }
+    }
+
+    static class BadComposition extends Exception {
+
+        public BadComposition(){
+            super("--- Vous ne pouvez pas faire de l'eau sucrée ou une composition vide ---");
         }
     }
 }
