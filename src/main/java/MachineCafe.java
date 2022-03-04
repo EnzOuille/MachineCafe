@@ -1,9 +1,17 @@
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class MachineCafe {
 
     private ArrayList<Boisson> boissons;
     private HashMap<String, Integer> stock;
+    private boolean condition = true;
 
     public MachineCafe() {
         this.boissons = new ArrayList<>();
@@ -18,10 +26,28 @@ public class MachineCafe {
         Scanner scanner = new Scanner(System.in);
         MachineCafe machine = new MachineCafe();
         try {
-            while (true) {
+            Gson gson = new Gson();
+            machine = gson.fromJson(new FileReader("machine.json"), machine.getClass());
+        } catch (FileNotFoundException ignored) {
+        }
+        try {
+            while (machine.condition) {
                 machine.printOptions();
                 String line = scanner.nextLine();
                 mainMachine(scanner, machine, line);
+            }
+            machine.condition = true;
+            try {
+                Gson gson = new GsonBuilder()
+                        .setPrettyPrinting()
+                        .create();
+                FileWriter file = new FileWriter("machine.json");
+                String jsonString = gson.toJson(machine);
+                file.write(jsonString);
+                file.flush();
+                file.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         } catch (IllegalStateException | NoSuchElementException e) {
             println("System.in was closed; exiting");
@@ -75,6 +101,9 @@ public class MachineCafe {
                     break;
                 case 7:
                     machine.listBoissonsDetails();
+                    break;
+                case 8:
+                    machine.condition = false;
                     break;
                 default:
                     println("Cette option n'existe pas");
@@ -141,6 +170,9 @@ public class MachineCafe {
         }
         println("--- Rentrer dans l'ordre et séparé par un ';' la composition : Cafe Lait Sucre Chocolat ---");
         String[] ingredients = scanner.nextLine().split(";");
+        if (!(ingredients.length == 4)) {
+            throw new BadComposition();
+        }
         int cafe = Integer.parseInt(ingredients[0]);
         int lait = Integer.parseInt(ingredients[1]);
         int sucre = Integer.parseInt(ingredients[2]);
@@ -176,6 +208,9 @@ public class MachineCafe {
         }
         println("--- Rentrer dans l'ordre et séparé par un ';' la  nouvelle composition : Cafe Lait Sucre Chocolat ---");
         String[] ingredients_modif = scanner.nextLine().split(";");
+        if (!(ingredients_modif.length == 4)) {
+            throw new BadComposition();
+        }
         int cafe_modif = Integer.parseInt(ingredients_modif[0]);
         int lait_modif = Integer.parseInt(ingredients_modif[1]);
         int sucre_modif = Integer.parseInt(ingredients_modif[2]);
@@ -207,10 +242,13 @@ public class MachineCafe {
         this.boissons.removeIf(boisson -> boisson.getNom().equalsIgnoreCase(temp));
     }
 
-    private void ajoutStockIngredient(Scanner scanner) throws IntStockException {
+    private void ajoutStockIngredient(Scanner scanner) throws IntStockException, BadComposition {
         this.consulterStock();
         println("--- Rentrez dans l'ordre et séparé par un ';'' le stock à ajouter : Cafe Sucre Chocolat Lait ---");
         String[] ingredients_stock = scanner.nextLine().split(";");
+        if (!(ingredients_stock.length == 4)) {
+            throw new BadComposition();
+        }
         int cafe_stock = Integer.parseInt(ingredients_stock[0]);
         int sucre_stock = Integer.parseInt(ingredients_stock[2]);
         int chocolat_stock = Integer.parseInt(ingredients_stock[3]);
@@ -271,6 +309,7 @@ public class MachineCafe {
         println("[5] - Ajouter au stock");
         println("[6] - Consulter Stock");
         println("[7] - Afficher le détail des boissons");
+        println("[8] - Quitter le programme et sauvegarder l'état de la machine");
     }
 
     private boolean verifIntegerStock(int test) {
@@ -321,4 +360,5 @@ public class MachineCafe {
             super("--- Vous ne pouvez pas faire de l'eau sucrée ou une composition vide ---");
         }
     }
+
 }
