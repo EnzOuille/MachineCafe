@@ -10,16 +10,13 @@ import java.util.*;
 public class MachineCafe {
 
     private ArrayList<Boisson> boissons;
-    private HashMap<String, Integer> stock;
+    private Stock stock;
     private boolean condition = true;
-
+    private int maxBoissonsSize = 5;
+    private final String noBoissons = "--- Aucune boisson n'est disponible dans la machine ---";
     public MachineCafe() {
         this.boissons = new ArrayList<>();
-        this.stock = new HashMap<>();
-        this.stock.put("cafe", 0);
-        this.stock.put("sucre", 0);
-        this.stock.put("lait", 0);
-        this.stock.put("chocolat", 0);
+        this.stock = new Stock(0, 0, 0, 0, 0);
     }
 
     public static void main(String[] args) {
@@ -37,25 +34,20 @@ public class MachineCafe {
                 mainMachine(scanner, machine, line);
             }
             machine.condition = true;
-            try {
-                Gson gson = new GsonBuilder()
-                        .setPrettyPrinting()
-                        .create();
-                FileWriter file = new FileWriter("machine.json");
-                String jsonString = gson.toJson(machine);
-                file.write(jsonString);
-                file.flush();
-                file.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            Gson gson = new GsonBuilder()
+                    .setPrettyPrinting()
+                    .create();
+            FileWriter file = new FileWriter("machine.json");
+            String jsonString = gson.toJson(machine);
+            file.write(jsonString);
+            file.flush();
+            file.close();
+            scanner.close();
         } catch (IllegalStateException | NoSuchElementException e) {
             println("System.in was closed; exiting");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-    }
-
-    private static void print(String str) {
-        System.out.print(str);
     }
 
     private static void println(String str) {
@@ -66,31 +58,31 @@ public class MachineCafe {
         try {
             switch (Integer.parseInt(line)) {
                 case 1:
-                    if (machine.boissons.size() > 0) {
+                    if (machine.boissons.isEmpty()) {
                         machine.acheterBoisson(scanner);
                     } else {
-                        println("--- Aucune boisson n'est disponible dans la machine ---");
+                        println(machine.noBoissons);
                     }
                     break;
                 case 2:
-                    if (machine.boissons.size() >= 3) {
+                    if (machine.boissons.size() >= machine.maxBoissonsSize) {
                         println("--- Déjà 3 boissons dans la machine. Impossible d'en ajouter ---");
                     } else {
                         machine.ajouterBoisson(scanner);
                     }
                     break;
                 case 3:
-                    if (machine.boissons.size() > 0) {
+                    if (machine.boissons.isEmpty()) {
                         machine.modifierBoisson(scanner);
                     } else {
-                        println("--- Aucune boisson n'est disponible dans la machine ---");
+                        println(machine.noBoissons);
                     }
                     break;
                 case 4:
-                    if (machine.boissons.size() > 0) {
+                    if (machine.boissons.isEmpty()) {
                         machine.supprimerBoisson(scanner);
                     } else {
-                        println("--- Aucune boisson n'est disponible dans la machine ---");
+                        println(machine.noBoissons);
                     }
                     break;
                 case 5:
@@ -111,12 +103,12 @@ public class MachineCafe {
             }
         } catch (NumberFormatException e) {
             println("--- Votre entier n'est pas correct, il doit être positif et compris entre 0 et 10000 ---");
-        } catch (IntStockException | IntPriceException | NameException | NameDontExist | BadComposition e) {
+        } catch (IntStockException | IntPriceException | NameException | NameDontExist | BadComposition | CustomException e) {
             println(e.getMessage());
         }
     }
 
-    private void acheterBoisson(Scanner scanner) throws NameException, NameDontExist, IntStockException {
+    private void acheterBoisson(Scanner scanner) throws NameException, NameDontExist, IntStockException, CustomException {
         this.listBoissons();
         println("--- Saississez le nom de la boisson à acheter ---");
         String nom_boisson = scanner.nextLine();
@@ -126,6 +118,11 @@ public class MachineCafe {
         if (!this.checkBoissonExist(nom_boisson)) {
             throw new NameDontExist();
         }
+        println("--- Saisissez votre nombre de sucre ---");
+        int sucre = Integer.parseInt(scanner.nextLine());
+        if (!(sucre >= 0 && sucre <= 5 && this.stock.getSucre() >= sucre)) {
+            throw new CustomException("--- Vous avez mis trop de sucre ou alors il n'y en a plus ---");
+        }
         println("--- Insérer votre monnaie (entier) ---");
         int montant = Integer.parseInt(scanner.nextLine());
         if (verifIntegerPrice(montant)) {
@@ -134,12 +131,12 @@ public class MachineCafe {
         for (Boisson boisson : this.boissons) {
             if (boisson.getNom().equalsIgnoreCase(nom_boisson)) {
                 if (boisson.getPrix() < montant) {
-                    if (this.stock.get("cafe") > boisson.getNbCafe() && this.stock.get("sucre") > boisson.getNbSucre() && this.stock.get("chocolat") > boisson.getNbChocolat() && this.stock.get("lait") > boisson.getNbLait()) {
+                    if (this.stock.getCafe() > boisson.getNbCafe() && this.stock.getSucre() > sucre && this.stock.getChocolat() > boisson.getNbChocolat() && this.stock.getLait() > boisson.getNbLait() && this.stock.getThe() > boisson.getNbThe()) {
                         println("-- Voici votre " + boisson.getNom() + " --");
                         if (montant != boisson.getPrix()) {
                             println("-- Voici votre monnaie : " + (montant - boisson.getPrix()) + " € --");
                         }
-                        this.reduceStock(boisson.getNbCafe(), boisson.getNbSucre(), boisson.getNbChocolat(), boisson.getNbLait());
+                        this.reduceStock(boisson.getNbCafe(), sucre, boisson.getNbChocolat(), boisson.getNbLait(), boisson.getNbThe());
                     } else {
                         println("-- Il n'y a plus assez d'ingrédients --");
                     }
@@ -150,14 +147,15 @@ public class MachineCafe {
         }
     }
 
-    private void reduceStock(int cafe, int sucre, int chocolat, int lait) {
-        this.stock.replace("cafe", this.stock.get("cafe") - cafe);
-        this.stock.replace("sucre", this.stock.get("sucre") - sucre);
-        this.stock.replace("chocolat", this.stock.get("chocolat") - chocolat);
-        this.stock.replace("lait", this.stock.get("lait") - lait);
+    private void reduceStock(int cafe, int sucre, int chocolat, int lait, int the) {
+        this.stock.setCafe(this.stock.getCafe() - cafe);
+        this.stock.setSucre(this.stock.getSucre() - sucre);
+        this.stock.setChocolat(this.stock.getChocolat() - chocolat);
+        this.stock.setLait(this.stock.getLait() - lait);
+        this.stock.setThe(this.stock.getThe() - the);
     }
 
-    private void ajouterBoisson(Scanner scanner) throws NameException, IntPriceException, BadComposition {
+    private void ajouterBoisson(Scanner scanner) throws NameException, IntPriceException, BadComposition, CustomException {
         println("--- Rentrer le nom de la boisson à créer ---");
         String nom = scanner.nextLine();
         if (nom.isEmpty() || nom.isBlank() || nom.length() > 100) {
@@ -168,27 +166,16 @@ public class MachineCafe {
         if (verifIntegerPrice(prix)) {
             throw new IntPriceException();
         }
-        println("--- Rentrer dans l'ordre et séparé par un ';' la composition : Cafe Lait Sucre Chocolat ---");
-        String[] ingredients = scanner.nextLine().split(";");
-        if (!(ingredients.length == 4)) {
-            throw new BadComposition();
-        }
-        int cafe = Integer.parseInt(ingredients[0]);
-        int lait = Integer.parseInt(ingredients[1]);
-        int sucre = Integer.parseInt(ingredients[2]);
-        int chocolat = Integer.parseInt(ingredients[3]);
-        if (verifComposition(cafe, lait, sucre, chocolat)) {
-            throw new BadComposition();
-        }
-        boolean condition = true;
+        HashMap<String, Integer> ingredients = this.parseIngredients(scanner);
+        boolean isBoisson = true;
         for (Boisson boisson : this.boissons) {
             if (boisson.getNom().equalsIgnoreCase(nom)) {
-                condition = false;
+                isBoisson = false;
                 break;
             }
         }
-        if (condition) {
-            Boisson temp_boisson = new Boisson(nom, prix, cafe, lait, sucre, chocolat);
+        if (isBoisson) {
+            Boisson temp_boisson = new Boisson(nom, prix, ingredients.get("cafe"), ingredients.get("lait"), ingredients.get("chocolat"), ingredients.get("the"));
             this.boissons.add(temp_boisson);
             println("-- L'ajout de la boisson " + temp_boisson.getNom() + " est fini --");
         } else {
@@ -196,7 +183,7 @@ public class MachineCafe {
         }
     }
 
-    private void modifierBoisson(Scanner scanner) throws NameException, NameDontExist, BadComposition {
+    private void modifierBoisson(Scanner scanner) throws NameException, NameDontExist, BadComposition, CustomException {
         println("--- Saisissez le nom de la boisson dont la composition doit etre modifiée ---");
         this.listBoissons();
         String nom_modif = scanner.nextLine();
@@ -206,27 +193,16 @@ public class MachineCafe {
         if (!this.checkBoissonExist(nom_modif)) {
             throw new NameDontExist();
         }
-        println("--- Rentrer dans l'ordre et séparé par un ';' la  nouvelle composition : Cafe Lait Sucre Chocolat ---");
-        String[] ingredients_modif = scanner.nextLine().split(";");
-        if (!(ingredients_modif.length == 4)) {
-            throw new BadComposition();
-        }
-        int cafe_modif = Integer.parseInt(ingredients_modif[0]);
-        int lait_modif = Integer.parseInt(ingredients_modif[1]);
-        int sucre_modif = Integer.parseInt(ingredients_modif[2]);
-        int chocolat_modif = Integer.parseInt(ingredients_modif[3]);
-        if (verifComposition(cafe_modif, sucre_modif, lait_modif, chocolat_modif)) {
-            throw new BadComposition();
-        }
+        HashMap<String, Integer> ingredients = this.parseIngredients(scanner);
         for (Boisson boisson : this.boissons) {
             if (boisson.getNom().equalsIgnoreCase(nom_modif)) {
-                boisson.setNbCafe(cafe_modif);
-                boisson.setNbSucre(sucre_modif);
-                boisson.setNbChocolat(chocolat_modif);
-                boisson.setNbLait(lait_modif);
+                boisson.setNbCafe(ingredients.get("cafe"));
+                boisson.setNbChocolat(ingredients.get("chocolat"));
+                boisson.setNbLait(ingredients.get("lait"));
+                boisson.setNbThe(ingredients.get("the"));
             }
         }
-        println("--- La compisition de la boisson a bien étée modifiée ---");
+        println("--- La composition de la boisson a bien étée modifiée ---");
     }
 
     private void supprimerBoisson(Scanner scanner) throws NameException, NameDontExist {
@@ -242,22 +218,24 @@ public class MachineCafe {
         this.boissons.removeIf(boisson -> boisson.getNom().equalsIgnoreCase(temp));
     }
 
-    private void ajoutStockIngredient(Scanner scanner) throws IntStockException, BadComposition {
+    private void ajoutStockIngredient(Scanner scanner) throws IntStockException, BadComposition, CustomException {
         this.consulterStock();
-        println("--- Rentrez dans l'ordre et séparé par un ';'' le stock à ajouter : Cafe Sucre Chocolat Lait ---");
+        println("--- Rentrez dans l'ordre et séparé par un ';'' le stock à ajouter : Cafe Sucre Chocolat Lait The ---");
         String[] ingredients_stock = scanner.nextLine().split(";");
-        if (!(ingredients_stock.length == 4)) {
-            throw new BadComposition();
+        if (ingredients_stock.length != 5) {
+            throw new CustomException("--- Mauvaise saisie des ingrédients ---");
         }
         int cafe_stock = Integer.parseInt(ingredients_stock[0]);
         int sucre_stock = Integer.parseInt(ingredients_stock[2]);
         int chocolat_stock = Integer.parseInt(ingredients_stock[3]);
         int lait_stock = Integer.parseInt(ingredients_stock[1]);
-        if (verifIntegerStock(cafe_stock) && verifIntegerStock(sucre_stock) && verifIntegerStock(chocolat_stock) && verifIntegerStock(lait_stock)) {
-            this.stock.replace("cafe", this.stock.get("cafe") + cafe_stock);
-            this.stock.replace("sucre", this.stock.get("sucre") + sucre_stock);
-            this.stock.replace("chocolat", this.stock.get("chocolat") + chocolat_stock);
-            this.stock.replace("lait", this.stock.get("lait") + lait_stock);
+        int the_stock = Integer.parseInt(ingredients_stock[4]);
+        if (verifIntegerStock(cafe_stock) && verifIntegerStock(sucre_stock) && verifIntegerStock(chocolat_stock) && verifIntegerStock(lait_stock) && verifIntegerStock(the_stock)) {
+            this.stock.setCafe(this.stock.getCafe() + cafe_stock);
+            this.stock.setSucre(this.stock.getSucre() + sucre_stock);
+            this.stock.setChocolat(this.stock.getChocolat() + chocolat_stock);
+            this.stock.setLait(this.stock.getLait() + lait_stock);
+            this.stock.setThe(this.stock.getThe() + the_stock);
             println("-- La modification du stock a bien été prise en compte --");
         } else {
             throw new IntStockException();
@@ -265,16 +243,13 @@ public class MachineCafe {
     }
 
     private void consulterStock() {
-        this.stock.forEach((k, v) -> {
-            print(k.toUpperCase() + " : " + v + " ");
-        });
-        print("\n");
+        println(this.stock.toString());
     }
 
     private void listBoissons() {
         this.boissons.sort(Comparator.comparing(Boisson::getNom));
         for (Boisson boisson : this.boissons) {
-            println(boisson.getNom() + " : " + boisson.getPrix() + " €");
+            println(boisson.shortToString());
         }
     }
 
@@ -282,9 +257,7 @@ public class MachineCafe {
         if (this.boissons.size() > 0) {
             this.boissons.sort(Comparator.comparing(Boisson::getNom));
             for (Boisson boisson : this.boissons) {
-                print(boisson.getNom() + " : " + boisson.getPrix() + " €");
-                print(" Composition : Cafe : " + boisson.getNbCafe() + " Sucre : " + boisson.getNbSucre() + " Chocolat : " + boisson.getNbChocolat() + " Lait : " + boisson.getNbLait());
-                print("\n");
+                println(boisson.toString());
             }
         } else {
             println("--- Aucune boissons dans la machine actuellement ---");
@@ -320,10 +293,32 @@ public class MachineCafe {
         return test <= 0 || test >= 10000;
     }
 
-    private boolean verifComposition(int cafe, int sucre, int lait, int chocolat) {
-        if (cafe == 0 && sucre == 0 && lait == 0 && chocolat == 0) {
-            return true;
-        } else return sucre > 0 && cafe == 0 && lait == 0 && chocolat == 0;
+    private boolean verifComposition(int cafe, int lait, int chocolat, int the) {
+        if (cafe > 0 && the > 0) {
+            return false;
+        }
+        return cafe != 0 || lait != 0 || chocolat != 0 || the != 0;
+    }
+
+    private HashMap<String, Integer> parseIngredients(Scanner scanner) throws BadComposition, CustomException {
+        println("--- Rentrer dans l'ordre et séparé par un ';' la composition : Cafe Lait Chocolat The ---");
+        String[] ingredients = scanner.nextLine().split(";");
+        if (ingredients.length != 4) {
+            throw new CustomException("--- Mauvaise saisie des ingrédients ---");
+        }
+        int cafe = Integer.parseInt(ingredients[0]);
+        int lait = Integer.parseInt(ingredients[1]);
+        int chocolat = Integer.parseInt(ingredients[2]);
+        int the = Integer.parseInt(ingredients[3]);
+        if (!verifComposition(cafe, lait, chocolat, the)) {
+            throw new BadComposition();
+        }
+        HashMap<String, Integer> res = new HashMap<>();
+        res.put("cafe", cafe);
+        res.put("lait", lait);
+        res.put("chocolat", chocolat);
+        res.put("the", the);
+        return res;
     }
 
     static class IntStockException extends Exception {
@@ -357,8 +352,14 @@ public class MachineCafe {
     static class BadComposition extends Exception {
 
         public BadComposition() {
-            super("--- Vous ne pouvez pas faire de l'eau sucrée ou une composition vide ---");
+            super("--- La composition de votre boisson n'est pas correcte ---");
         }
     }
 
+    static class CustomException extends Exception {
+
+        public CustomException(String message) {
+            super(message);
+        }
+    }
 }

@@ -8,17 +8,17 @@ public class Boisson {
 
     private int nbLait;
 
-    private int nbSucre;
-
     private int nbChocolat;
 
-    public Boisson(String nom, int prix, int nbCafe, int nbLait, int nbSucre, int nbChocolat) {
+    private int nbThe;
+
+    public Boisson(String nom, int prix, int nbCafe, int nbLait, int nbChocolat, int nbThe) {
         this.nom = nom;
         this.prix = prix;
         this.nbCafe = nbCafe;
         this.nbLait = nbLait;
-        this.nbSucre = nbSucre;
         this.nbChocolat = nbChocolat;
+        this.nbThe = nbThe;
     }
 
     public String getNom() {
@@ -27,6 +27,14 @@ public class Boisson {
 
     public void setNom(String nom) {
         this.nom = nom;
+    }
+
+    public String shortToString(){
+        return this.nom + " - Prix : " + this.prix;
+    }
+
+    public String toString() {
+        return this.nom + " - Prix : " + this.prix + " - Cafe : " + this.nbCafe + " - Lait : " + this.nbLait + " - Chocolat : " + this.nbChocolat + " - The : " + this.nbThe;
     }
 
     public int getPrix() {
@@ -53,19 +61,19 @@ public class Boisson {
         this.nbLait = nbLait;
     }
 
-    public int getNbSucre() {
-        return nbSucre;
-    }
-
-    public void setNbSucre(int nbSucre) {
-        this.nbSucre = nbSucre;
-    }
-
     public int getNbChocolat() {
         return nbChocolat;
     }
 
     public void setNbChocolat(int nbChocolat) {
         this.nbChocolat = nbChocolat;
+    }
+
+    public int getNbThe() {
+        return nbThe;
+    }
+
+    public void setNbThe(int nbThe) {
+        this.nbThe = nbThe;
     }
 }
